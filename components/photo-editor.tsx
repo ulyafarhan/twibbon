@@ -32,8 +32,41 @@ export function PhotoEditor({
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const isDragging = useRef(false);
   const lastPosition = useRef({ x: 0, y: 0 });
+  const frameImageRef = useRef<HTMLImageElement | null>(null);
   const [isFrameLoading, setIsFrameLoading] = React.useState(true);
 
+  // Effect to load the frame image only once
+  useEffect(() => {
+    if (!selectedFrame) {
+      frameImageRef.current = null;
+      setIsFrameLoading(false);
+      return;
+    }
+
+    if (frameImageRef.current && frameImageRef.current.src === new URL(selectedFrame.url, window.location.origin).href) {
+      // Frame already loaded and is the same
+      setIsFrameLoading(false);
+      return;
+    }
+
+    setIsFrameLoading(true);
+    const frameImg = new Image();
+    frameImg.crossOrigin = "anonymous";
+    frameImg.onload = () => {
+      frameImageRef.current = frameImg;
+      setIsFrameLoading(false);
+      // Trigger a re-render of the canvas to draw the newly loaded frame
+      // by updating a dummy state or by directly calling the draw function if it were extracted.
+      // For now, relying on the main draw effect to pick this up.
+    };
+    frameImg.onerror = () => {
+      console.error("Failed to load frame image:", selectedFrame.url);
+      setIsFrameLoading(false);
+    };
+    frameImg.src = selectedFrame.url;
+  }, [selectedFrame]);
+
+  // Main effect for drawing photo and frame
   useEffect(() => {
     if (!previewCanvasRef.current) return;
 
@@ -50,16 +83,21 @@ export function PhotoEditor({
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const drawFrame = () => {
+      if (frameImageRef.current) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(frameImageRef.current, 0, 0, canvas.width, canvas.height);
+      }
+    };
+
     if (photo.url) {
-      // Load and draw photo
       const photoImg = new Image();
       photoImg.crossOrigin = "anonymous";
 
       photoImg.onload = () => {
-        // Save context
         ctx.save();
 
-        // Apply transformations exactly like download
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((photo.rotation * Math.PI) / 180);
         ctx.scale(photo.scale, photo.scale);
@@ -78,7 +116,6 @@ export function PhotoEditor({
         const offsetX = (canvas.width - drawWidth) / 2;
         const offsetY = (canvas.height - drawHeight) / 2;
 
-        // Draw photo with exact same logic as download
         ctx.drawImage(
           photoImg,
           photo.x + offsetX,
@@ -87,27 +124,15 @@ export function PhotoEditor({
           drawHeight
         );
 
-        // Restore context
         ctx.restore();
-
-        // Load and draw frame if selected
-        if (selectedFrame) {
-          setIsFrameLoading(true);
-          const frameImg = new Image();
-          frameImg.crossOrigin = "anonymous";
-          frameImg.onload = () => {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-            setIsFrameLoading(false);
-          };
-          frameImg.src = selectedFrame.url;
-        }
+        drawFrame(); // Draw frame after photo
       };
 
       photoImg.src = photo.url;
+    } else {
+      drawFrame(); // If no photo, just draw the frame
     }
-  }, [photo, selectedFrame]);
+  }, [photo, selectedFrame, isFrameLoading]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isPhotoUploaded) return;

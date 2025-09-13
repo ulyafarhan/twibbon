@@ -297,7 +297,10 @@ export function TwibbonEditor() {
 
             {/* Download Section */}
             <div className="border-t pt-6">
-              <Button onClick={downloadTwibbon} className="w-full gap-2">
+              <Button
+                onClick={downloadTwibbon}
+                className="w-full gap-2 cursor-pointer"
+              >
                 <Download className="h-4 w-4" />
                 Download Twibbon
               </Button>
