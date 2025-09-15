@@ -1,23 +1,48 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { ThemeSwitcher } from "./theme-switcher";
-import Link from "next/link";
+import React from 'react';
+import Link from 'next/link';
 
-export function Header() {
+const Header = () => {
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-12 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-4">
-            <Image src="/logo-ptq.svg" width={32} height={32} alt="ptq-logo" />
-          </Link>
-
-          <div className="flex items-center space-x-2">
-            <ThemeSwitcher />
-          </div>
+    <nav className="navbar navbar-expand-lg navbar-light bg-light shadow-sm sticky-top">
+      <div className="container-fluid">
+        <Link className="navbar-brand" href="/">
+          <h1 className="h4 mb-0">PTQ Twibbon</h1>
+        </Link>
+        <button
+          className="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span className="navbar-toggler-icon"></span>
+        </button>
+        <div className="collapse navbar-collapse" id="navbarNav">
+          <ul className="navbar-nav ms-auto">
+            <li className="nav-item">
+              <Link className="nav-link active" aria-current="page" href="/">
+                Beranda
+              </Link>
+            </li>
+            <li className="nav-item">
+              <a
+                className="nav-link"
+                href="https://github.com/ghiyatsa/ptq-twibbon"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
-    </header>
+    </nav>
   );
-}
+};
+
+export default Header;

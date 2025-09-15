@@ -1,71 +1,86 @@
-"use client"
+'use client';
 
-import { useCallback } from "react"
-import { useDropzone, FileRejection } from "react-dropzone"
-import { Upload, ImageIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from '@/hooks/use-toast';
+import { ChangeEvent, useRef } from 'react';
+import { ImageUp } from 'lucide-react';
 
 interface PhotoUploadProps {
-  onPhotoUpload: (file: File) => void
+  onPhotoUpload: (file: File) => void;
 }
 
-export function PhotoUpload({ onPhotoUpload }: PhotoUploadProps) {
-  const { toast } = useToast()
+const PhotoUpload = ({ onPhotoUpload }: PhotoUploadProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const onDrop = useCallback(
-    (acceptedFiles: File[], fileRejections: FileRejection[]) => {
-      if (acceptedFiles.length > 0) {
-        onPhotoUpload(acceptedFiles[0])
-      }
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
 
-      if (fileRejections.length > 0) {
-        const rejection = fileRejections[0]
-        const errorMessage = rejection.errors[0].message
-        toast({
-          variant: "destructive",
-          title: "Gagal Upload Foto",
-          description: `Ukuran file terlalu besar. Maksimal 10MB.`,
-        })
-      }
-    },
-    [onPhotoUpload, toast],
-  )
+    if (!file) {
+      toast({
+        title: 'Gagal',
+        description: 'Tidak ada file yang dipilih',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
-    },
-    multiple: false,
-    maxSize: 10 * 1024 * 1024, // 10MB
-  })
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Gagal',
+        description: 'File yang dipilih bukan gambar',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onPhotoUpload(file);
+    toast({
+      title: 'Sukses',
+      description: 'Gambar berhasil diunggah',
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    handleFileChange({
+      target: { files: [file] },
+    } as ChangeEvent<HTMLInputElement>);
+  };
 
   return (
     <div
-      {...getRootProps()}
-      className={cn(
-        "border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-primary/50",
-        isDragActive && "border-primary bg-primary/5",
-      )}
+      className="d-flex flex-column align-items-center justify-content-center text-center p-4 border border-2 border-dashed rounded-3"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
-      <input {...getInputProps()} />
-      <div className="flex flex-col items-center gap-4">
-        {isDragActive ? (
-          <>
-            <Upload className="h-12 w-12 text-primary animate-bounce" />
-            <p className="text-primary font-medium">Lepaskan foto di sini...</p>
-          </>
-        ) : (
-          <>
-            <ImageIcon className="h-12 w-12 text-muted-foreground" />
-            <div>
-              <p className="font-medium text-foreground mb-1">Klik atau drag foto ke sini</p>
-              <p className="text-sm text-muted-foreground">Mendukung JPG, PNG, GIF, WebP (Max 10MB)</p>
-            </div>
-          </>
-        )}
+      <div className="mb-3">
+        <ImageUp size={48} />
       </div>
+      <p className="lead">
+        Drag and drop gambar Anda di sini, atau klik tombol di bawah untuk
+        mengunggah.
+      </p>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        Unggah Gambar
+      </button>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="d-none"
+        accept="image/*"
+      />
     </div>
-  )
-}
+  );
+};
+
+export default PhotoUpload;

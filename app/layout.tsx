@@ -1,35 +1,34 @@
-import type React from "react";
-import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
-import { Analytics } from "@vercel/analytics/next";
-import { Suspense } from "react";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Header from '@/components/header';
+import Footer from '@/components/footer';
+import ToastContainer from '@/components/toast-container';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: "PTQ Twibbon",
-  description: "Twibbon Milad Ke-16 UKM PTQ",
+  title: 'PTQ Twibbon',
+  description: 'Aplikasi untuk membuat twibbon keren dan modern.',
 };
-
-import { ThemeProvider } from "@/components/theme-provider";
-
-import { Toaster } from "@/components/ui/toaster";
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="id" suppressHydrationWarning>
-      <body
-        className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}
-      >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <Suspense fallback={null}>{children}</Suspense>
-          <Analytics />
-          <Toaster />
-        </ThemeProvider>
+    <html lang="en">
+      <body className={inter.className}>
+        <div className="d-flex flex-column min-vh-100">
+          <Header />
+          <main className="container-fluid flex-grow-1 py-4">
+            {children}
+          </main>
+          <Footer />
+          <ToastContainer />
+        </div>
       </body>
     </html>
   );

@@ -1,14 +1,24 @@
-export function Footer() {
+import React from 'react';
+import Link from 'next/link';
+
+const Footer = () => {
   return (
-    <footer className="border-t border-border bg-card/50 mt-16">
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <p className="text-muted-foreground">
-            © {new Date().getFullYear()} PTQ Twibbon. Made with 🍵 by Infokom
-            PTQ.
-          </p>
-        </div>
+    <footer className="footer bg-light py-3 mt-auto">
+      <div className="container text-center">
+        <span className="text-muted">
+          Dibuat dengan ❤️ oleh{' '}
+          <Link
+            href="https://www.linkedin.com/in/ghiyats-hanif-a6b106206/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-decoration-none"
+          >
+            Ghiyats Hanif
+          </Link>
+        </span>
       </div>
     </footer>
   );
-}
+};
+
+export default Footer;

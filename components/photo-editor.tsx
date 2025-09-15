@@ -1,270 +1,181 @@
-"use client";
+'use client';
 
-import React from "react";
+import { useRef, useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { Slider } from '@/components/ui/slider'; // Ganti dengan slider kustom Bootstrap jika ada
+import { RotateCcw, ZoomIn, ZoomOut, Download } from 'lucide-react';
+import htmlToImage from 'html-to-image';
+import { useMobile } from '@/hooks/use-mobile';
 
-import { useEffect, useRef } from "react";
-import type { PhotoState } from "@/components/twibbon-editor";
+const PhotoEditor = () => {
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [twibbonUrl, setTwibbonUrl] = useState<string>('');
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [twibbonPosition, setTwibbonPosition] = useState({ x: 0, y: 0 });
+  const [isTwibbonDragging, setIsTwibbonDragging] = useState(false);
+  const [isImageDragging, setIsImageDragging] = useState(false);
+  const twibbonEditorRef = useRef<HTMLDivElement>(null);
+  const twibbonFrameRef = useRef<HTMLImageElement>(null);
+  const { toast } = useToast();
+  const isMobile = useMobile();
 
-import { Skeleton } from "@/components/ui/skeleton";
-
-interface FrameState {
-  id: string;
-  name: string;
-  url: string;
-  category: string;
-}
-
-interface PhotoEditorProps {
-  photo: PhotoState;
-  selectedFrame: FrameState | null;
-  onPhotoUpdate: (updates: Partial<PhotoState>) => void;
-  canvasRef: React.RefObject<HTMLCanvasElement>;
-  isPhotoUploaded: boolean;
-}
-
-export function PhotoEditor({
-  photo,
-  selectedFrame,
-  onPhotoUpdate,
-  canvasRef,
-  isPhotoUploaded,
-}: PhotoEditorProps) {
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const isDragging = useRef(false);
-  const lastPosition = useRef({ x: 0, y: 0 });
-  const frameImageRef = useRef<HTMLImageElement | null>(null);
-  const [isFrameLoading, setIsFrameLoading] = React.useState(true);
-
-  // Effect to load the frame image only once
   useEffect(() => {
-    if (!selectedFrame) {
-      frameImageRef.current = null;
-      setIsFrameLoading(false);
+    const handleMouseUp = () => {
+      setIsImageDragging(false);
+      setIsTwibbonDragging(false);
+    };
+
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleTwibbonEditorMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsTwibbonDragging(true);
+  };
+
+  const handleTwibbonEditorMouseMove = (e: React.MouseEvent) => {
+    if (isTwibbonDragging) {
+      setTwibbonPosition((prev) => ({
+        x: prev.x + e.movementX,
+        y: prev.y + e.movementY,
+      }));
+    }
+  };
+
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsImageDragging(true);
+  };
+
+  const handleImageMouseMove = (e: React.MouseEvent) => {
+    if (isImageDragging) {
+      setPosition((prev) => ({
+        x: prev.x + e.movementX,
+        y: prev.y + e.movementY,
+      }));
+    }
+  };
+
+  const handleZoomIn = () => {
+    setScale((prev) => prev + 0.1);
+  };
+
+  const handleZoomOut = () => {
+    setScale((prev) => Math.max(1, prev - 0.1));
+  };
+
+  const handleReset = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+    setTwibbonPosition({ x: 0, y: 0 });
+  };
+
+  const handleExport = async () => {
+    if (!twibbonEditorRef.current) {
+      toast({
+        title: 'Gagal',
+        description: 'Terjadi kesalahan saat mengekspor gambar',
+        variant: 'destructive',
+      });
       return;
     }
 
-    if (frameImageRef.current && frameImageRef.current.src === new URL(selectedFrame.url, window.location.origin).href) {
-      // Frame already loaded and is the same
-      setIsFrameLoading(false);
-      return;
-    }
-
-    setIsFrameLoading(true);
-    const frameImg = new Image();
-    frameImg.crossOrigin = "anonymous";
-    frameImg.onload = () => {
-      frameImageRef.current = frameImg;
-      setIsFrameLoading(false);
-      // Trigger a re-render of the canvas to draw the newly loaded frame
-      // by updating a dummy state or by directly calling the draw function if it were extracted.
-      // For now, relying on the main draw effect to pick this up.
-    };
-    frameImg.onerror = () => {
-      console.error("Failed to load frame image:", selectedFrame.url);
-      setIsFrameLoading(false);
-    };
-    frameImg.src = selectedFrame.url;
-  }, [selectedFrame]);
-
-  // Main effect for drawing photo and frame
-  useEffect(() => {
-    if (!previewCanvasRef.current) return;
-
-    const canvas = previewCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    canvas.width = 2160;
-    canvas.height = 2700;
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const drawFrame = () => {
-      if (frameImageRef.current) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(frameImageRef.current, 0, 0, canvas.width, canvas.height);
-      }
-    };
-
-    if (photo.url) {
-      const photoImg = new Image();
-      photoImg.crossOrigin = "anonymous";
-
-      photoImg.onload = () => {
-        ctx.save();
-
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate((photo.rotation * Math.PI) / 180);
-        ctx.scale(photo.scale, photo.scale);
-        ctx.translate(-canvas.width / 2, -canvas.height / 2);
-
-        const photoAspect = photoImg.width / photoImg.height;
-        let drawWidth = canvas.width;
-        let drawHeight = canvas.height;
-
-        if (photoAspect > 1) {
-          drawHeight = drawWidth / photoAspect;
-        } else {
-          drawWidth = drawHeight * photoAspect;
-        }
-
-        const offsetX = (canvas.width - drawWidth) / 2;
-        const offsetY = (canvas.height - drawHeight) / 2;
-
-        ctx.drawImage(
-          photoImg,
-          photo.x + offsetX,
-          photo.y + offsetY,
-          drawWidth,
-          drawHeight
-        );
-
-        ctx.restore();
-        drawFrame(); // Draw frame after photo
-      };
-
-      photoImg.src = photo.url;
-    } else {
-      drawFrame(); // If no photo, just draw the frame
-    }
-  }, [photo, selectedFrame, isFrameLoading]);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!isPhotoUploaded) return;
-    if (!photo.url) return;
-    isDragging.current = true;
-    const rect = previewCanvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      lastPosition.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
+    try {
+      const dataUrl = await htmlToImage.toPng(twibbonEditorRef.current);
+      const link = document.createElement('a');
+      link.download = 'twibbon.png';
+      link.href = dataUrl;
+      link.click();
+      toast({
+        title: 'Sukses',
+        description: 'Twibbon berhasil diunduh',
+      });
+    } catch (err) {
+      toast({
+        title: 'Gagal',
+        description: `Terjadi kesalahan saat mengekspor: ${err}`,
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current || !previewCanvasRef.current) return;
-
-    const rect = previewCanvasRef.current.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
-
-    const deltaX = currentX - lastPosition.current.x;
-    const deltaY = currentY - lastPosition.current.y;
-
-    const scaleX = previewCanvasRef.current.width / rect.width;
-    const scaleY = previewCanvasRef.current.height / rect.height;
-
-    onPhotoUpdate({
-      x: photo.x + deltaX * scaleX,
-      y: photo.y + deltaY * scaleY,
-    });
-
-    lastPosition.current = { x: currentX, y: currentY };
-  };
-
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!isPhotoUploaded) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect = previewCanvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      isDragging.current = true;
-      lastPosition.current = {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-      };
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    e.preventDefault();
-    if (!isDragging.current || !previewCanvasRef.current) return;
-
-    const touch = e.touches[0];
-    const rect = previewCanvasRef.current.getBoundingClientRect();
-    const currentX = touch.clientX - rect.left;
-    const currentY = touch.clientY - rect.top;
-
-    const deltaX = currentX - lastPosition.current.x;
-    const deltaY = currentY - lastPosition.current.y;
-
-    const scaleX = previewCanvasRef.current.width / rect.width;
-    const scaleY = previewCanvasRef.current.height / rect.height;
-
-    onPhotoUpdate({
-      x: photo.x + deltaX * scaleX,
-      y: photo.y + deltaY * scaleY,
-    });
-
-    lastPosition.current = { x: currentX, y: currentY };
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    isDragging.current = false;
-  };
-
-  if (!photo.url && selectedFrame) {
+  if (!photo) {
     return (
-      <div className="space-y-4">
-        <div className="aspect-[4/5] bg-muted rounded-lg overflow-hidden relative">
-          <canvas
-            ref={previewCanvasRef}
-            className="w-full h-full"
-            style={{ imageRendering: "crisp-edges" }}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground text-center">
-          Upload foto untuk mulai mengedit twibbon Anda
-        </p>
-      </div>
+      <PhotoUpload
+        onPhotoUpload={(file) => {
+          setPhoto(file);
+        }}
+      />
     );
   }
 
-  if (!photo.url) {
-    return (
-      <div className="aspect-[4/5] bg-muted rounded-lg flex items-center justify-center">
-        <p className="text-muted-foreground">
-          Upload foto untuk mulai mengedit
-        </p>
-      </div>
-    );
-  }
+  const twibbonStyles = {
+    transform: `translate(${twibbonPosition.x}px, ${twibbonPosition.y}px)`,
+    cursor: isTwibbonDragging ? 'grabbing' : 'grab',
+  };
+
+  const imageStyles = {
+    transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
+    cursor: isImageDragging ? 'grabbing' : 'grab',
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="aspect-[4/5] bg-muted rounded-lg overflow-hidden relative">
-        {isFrameLoading && <Skeleton className="w-full h-full absolute" />}
-        <canvas
-          ref={previewCanvasRef}
-          className="w-full h-full cursor-move select-none"
-          style={{ imageRendering: "crisp-edges" }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        />
+    <div className="d-flex flex-column align-items-center w-100 h-100">
+      <div className="position-relative overflow-hidden w-100 ratio ratio-1x1" style={{ maxWidth: '500px' }}>
+        <div
+          ref={twibbonEditorRef}
+          className="position-relative w-100 h-100"
+          onMouseMove={handleTwibbonEditorMouseMove}
+        >
+          <img
+            src={URL.createObjectURL(photo)}
+            alt="Uploaded"
+            className="w-100 h-100 object-cover position-absolute top-0 start-0"
+            style={imageStyles}
+            onMouseDown={handleImageMouseDown}
+          />
+          <img
+            src="/images/twibbon-frame.png"
+            alt="Twibbon Frame"
+            className="w-100 h-100 position-absolute top-0 start-0 z-2"
+            style={twibbonStyles}
+            onMouseDown={handleTwibbonEditorMouseDown}
+          />
+        </div>
       </div>
 
-      {photo.url && (
-        <p className="text-sm text-muted-foreground text-center">
-          Drag foto untuk mengatur posisi, gunakan kontrol di samping untuk zoom
-          dan rotasi
-        </p>
-      )}
+      <div className="d-flex justify-content-center align-items-center mt-3 w-100 flex-wrap gap-2">
+        <button className="btn btn-secondary me-2" onClick={handleReset}>
+          <RotateCcw size={16} className="me-2" /> Reset
+        </button>
+        <div className="d-flex align-items-center">
+          <button className="btn btn-outline-secondary me-2" onClick={handleZoomOut}>
+            <ZoomOut size={16} />
+          </button>
+          <input
+            type="range"
+            className="form-range"
+            min="1"
+            max="2"
+            step="0.1"
+            value={scale}
+            onChange={(e) => setScale(parseFloat(e.target.value))}
+            style={{ width: isMobile ? '100px' : '200px' }}
+          />
+          <button className="btn btn-outline-secondary ms-2" onClick={handleZoomIn}>
+            <ZoomIn size={16} />
+          </button>
+        </div>
+        <button className="btn btn-primary" onClick={handleExport}>
+          <Download size={16} className="me-2" /> Unduh
+        </button>
+      </div>
     </div>
   );
-}
+};
+
+export default PhotoEditor;
